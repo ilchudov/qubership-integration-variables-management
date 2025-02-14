@@ -26,11 +26,14 @@ import org.apache.commons.collections4.MapUtils;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
+import java.util.HashMap;
 import java.util.Map;
 
 @Slf4j
 @Component
 public class KubeSecretSerializer extends StdSerializer<V1Secret> {
+
+    private static final String TEST_VARIABLE_KEY = "test";
 
     public KubeSecretSerializer() {
         this(null);
@@ -66,16 +69,15 @@ public class KubeSecretSerializer extends StdSerializer<V1Secret> {
             }
             jsonGenerator.writeEndObject();
         }
-        if (secret.getData() != null) {
-            writeSecuredVariablesData(jsonGenerator, secret.getData());
-        }
+        writeSecuredVariablesData(jsonGenerator, secret.getData());
 
         jsonGenerator.writeEndObject();
     }
 
     private void writeSecuredVariablesData(JsonGenerator jsonGenerator, Map<String, byte[]> data) throws IOException {
         if (MapUtils.isEmpty(data)) {
-            return;
+            data = new HashMap<>();
+            data.put(TEST_VARIABLE_KEY, new byte[0]);
         }
 
         jsonGenerator.writeFieldName(V1Secret.SERIALIZED_NAME_STRING_DATA);
