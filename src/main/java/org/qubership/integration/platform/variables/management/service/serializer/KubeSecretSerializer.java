@@ -17,17 +17,12 @@
 package org.qubership.integration.platform.variables.management.service.serializer;
 
 import com.fasterxml.jackson.core.JsonGenerator;
-import com.fasterxml.jackson.core.type.TypeReference;
-import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.SerializerProvider;
 import com.fasterxml.jackson.databind.ser.std.StdSerializer;
-import org.qubership.integration.platform.variables.management.rest.exception.SecuredVariablesException;
 import io.kubernetes.client.openapi.models.V1ObjectMeta;
 import io.kubernetes.client.openapi.models.V1Secret;
 import lombok.extern.slf4j.Slf4j;
 import org.apache.commons.collections4.MapUtils;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
 import java.io.IOException;
@@ -37,16 +32,12 @@ import java.util.Map;
 @Component
 public class KubeSecretSerializer extends StdSerializer<V1Secret> {
 
-    private final ObjectMapper objectMapper;
-
-    @Autowired
-    public KubeSecretSerializer(@Qualifier("primaryObjectMapper") ObjectMapper objectMapper) {
-        this(null, objectMapper);
+    public KubeSecretSerializer() {
+        this(null);
     }
 
-    public KubeSecretSerializer(Class<V1Secret> t, @Qualifier("primaryObjectMapper") ObjectMapper objectMapper) {
+    public KubeSecretSerializer(Class<V1Secret> t) {
         super(t);
-        this.objectMapper = objectMapper;
     }
 
     @Override
@@ -90,18 +81,9 @@ public class KubeSecretSerializer extends StdSerializer<V1Secret> {
         jsonGenerator.writeFieldName(V1Secret.SERIALIZED_NAME_STRING_DATA);
         jsonGenerator.writeStartObject();
 
-        for (Map.Entry<String, byte[]> dataEntry : data.entrySet()) {
-            String serializedVariables;
-            try {
-                Map<String, String> variables = objectMapper.readValue(new String(dataEntry.getValue()), new TypeReference<>() {});
-                variables.replaceAll((key, value) -> composeHelmChartExpressionFromKey(key));
-                serializedVariables = objectMapper.writeValueAsString(variables);
-            } catch (IOException e) {
-                log.error("Can't deserialize secured variables for tenant: {}", dataEntry.getKey(), e);
-                throw new SecuredVariablesException("Can't deserialize secured variables for tenant: " + dataEntry.getKey(), e);
-            }
-
-            jsonGenerator.writeString(serializedVariables);
+        for (String variableKey : data.keySet()) {
+            jsonGenerator.writeFieldName(variableKey);
+            jsonGenerator.writeString(composeHelmChartExpressionFromKey(variableKey));
         }
         jsonGenerator.writeEndObject();
     }
